@@ -63,8 +63,13 @@ Return a valid JSON object with the following structure:
       const data = JSON.parse(text);
       res.json(data);
     } catch (error: any) {
-      console.error("Gemini AI Forecast Error:", error);
       const isQuotaError = error?.message?.includes('429') || error?.status === 'RESOURCE_EXHAUSTED' || error?.message?.includes('Quota exceeded');
+      
+      if (!isQuotaError) {
+        console.error("Gemini AI Forecast Error:", error);
+      } else {
+        console.log("Gemini API quota reached (429). Falling back to intelligent heuristic demand forecast.");
+      }
       
       const fallbackSummary = isQuotaError 
         ? "Gemini API quota temporarily reached. Displaying intelligent heuristic demand forecast." 
@@ -76,7 +81,7 @@ Return a valid JSON object with the following structure:
         productName: p.name,
         sku: p.sku,
         predictedDemand30Days: Math.floor(20 + Math.random() * 80),
-        recommendedReorderQty: Math.max(10, p.minThreshold * 2),
+        recommendedReorderQty: Math.max(10, (p.minThreshold || 5) * 2),
         urgency: Math.random() > 0.6 ? 'High' : 'Medium',
         reasoning: 'Calculated via local heuristic demand velocity model.'
       }));
