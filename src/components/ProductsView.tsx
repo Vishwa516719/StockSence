@@ -11,10 +11,12 @@ import {
   getProductStockInStack,
   updateProductStock,
   getWarehouses,
-  addLedgerEntry
+  addLedgerEntry,
+  logActivity
 } from '../utils/storage';
 import { exportToCSV } from '../utils/csvExport';
 import { BarcodeScannerModal } from './BarcodeScannerModal';
+import { undoManager } from '../services/undoService';
 import { Boxes, Search, Plus, AlertTriangle, Layers, Tag, X, Download, Upload, Scan } from 'lucide-react';
 
 interface Props {
@@ -81,6 +83,18 @@ export const ProductsView: React.FC<Props> = ({ currentUser, onShowToast }) => {
     const updatedProducts = [...products, newProduct];
     saveProducts(updatedProducts);
     setProducts(updatedProducts);
+
+    undoManager.push({
+      description: `Created product "${newProduct.name}"`,
+      undo: () => {
+        const currentProducts = getProducts().filter(p => p.id !== newProduct.id);
+        saveProducts(currentProducts);
+        setProducts(currentProducts);
+        onShowToast('info', 'Undo Successful', `Product "${newProduct.name}" creation reverted.`);
+      }
+    });
+
+    logActivity(`Product "${newProduct.name}" added`, currentUser.name, `SKU: ${newProduct.sku}`);
 
     if (initialCount > 0 && initialStackId) {
       updateProductStock(newProduct.id, initialStackId, Number(initialCount));

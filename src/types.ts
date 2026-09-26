@@ -146,3 +146,11 @@ export interface ToastMessage {
   title: string;
   message: string;
 }
+
+export interface ActivityLog {
+  id: string;
+  timestamp: string;
+  action: string;
+  userName: string;
+  details?: string;
+}

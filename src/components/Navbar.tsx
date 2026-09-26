@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { CompanyProfile, StaffUser, Product, WarehouseStack, MoveLedgerEntry } from '../types';
 import { getStaffList, setCurrentUserId, getProducts, getStockLocations, getWarehouses, getMoveLedger } from '../utils/storage';
-import { Package, Plus, LogOut, Shield, ChevronDown, Bell, AlertTriangle, Send, Sun, Moon, Search, Boxes, Layers, FileSpreadsheet, X } from 'lucide-react';
+import { Package, Plus, LogOut, Shield, ChevronDown, Bell, AlertTriangle, Send, Sun, Moon, Search, Boxes, Layers, FileSpreadsheet, X, CheckCircle2, Clock } from 'lucide-react';
 import { ActiveTab } from './Sidebar';
 
 interface Props {
@@ -30,6 +30,7 @@ export const Navbar: React.FC<Props> = ({
   const staffList = getStaffList();
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [isNotifOpen, setIsNotifOpen] = useState(false);
+  const [dismissedAlerts, setDismissedAlerts] = useState<string[]>([]);
 
   // Global Search state
   const [searchQuery, setSearchQuery] = useState('');
@@ -44,16 +45,11 @@ export const Navbar: React.FC<Props> = ({
     const totalStock = stockLocations
       .filter(l => l.productId === p.id)
       .reduce((sum, l) => sum + l.quantity, 0);
-    return totalStock <= p.minThreshold;
+    return totalStock <= p.minThreshold && !dismissedAlerts.includes(p.id);
   });
 
-  // Global search filtering
-  const query = searchQuery.trim().toLowerCase();
-  const matchedProducts = query.length >= 2 ? products.filter(p => p.name.toLowerCase().includes(query) || p.sku.toLowerCase().includes(query) || p.category.toLowerCase().includes(query)).slice(0, 5) : [];
-  const matchedWarehouses = query.length >= 2 ? warehouses.filter(w => w.warehouseName.toLowerCase().includes(query) || w.stackName.toLowerCase().includes(query) || w.zone.toLowerCase().includes(query)).slice(0, 5) : [];
-  const matchedLedger = query.length >= 2 ? ledger.filter(l => l.referenceNo.toLowerCase().includes(query) || l.productName.toLowerCase().includes(query) || l.sku.toLowerCase().includes(query)).slice(0, 5) : [];
-
-  const hasSearchResults = matchedProducts.length > 0 || matchedWarehouses.length > 0 || matchedLedger.length > 0;
+  // Recent ledger audit events as additional notifications
+  const recentLedgerEvents = ledger.slice(0, 5);
 
   const handleSelectUser = (user: StaffUser) => {
     setCurrentUserId(user.id);
@@ -67,9 +63,22 @@ export const Navbar: React.FC<Props> = ({
     setIsNotifOpen(false);
   };
 
+  const handleDismissAlert = (productId: string) => {
+    setDismissedAlerts(prev => [...prev, productId]);
+    onShowToast('info', 'Alert Dismissed', 'Stock threshold alert acknowledged.');
+  };
+
+  // Global search filtering
+  const query = searchQuery.trim().toLowerCase();
+  const matchedProducts = query.length >= 2 ? products.filter(p => p.name.toLowerCase().includes(query) || p.sku.toLowerCase().includes(query) || p.category.toLowerCase().includes(query)).slice(0, 5) : [];
+  const matchedWarehouses = query.length >= 2 ? warehouses.filter(w => w.warehouseName.toLowerCase().includes(query) || w.stackName.toLowerCase().includes(query) || w.zone.toLowerCase().includes(query)).slice(0, 5) : [];
+  const matchedLedger = query.length >= 2 ? ledger.filter(l => l.referenceNo.toLowerCase().includes(query) || l.productName.toLowerCase().includes(query) || l.sku.toLowerCase().includes(query)).slice(0, 5) : [];
+
+  const hasSearchResults = matchedProducts.length > 0 || matchedWarehouses.length > 0 || matchedLedger.length > 0;
+
   return (
-    <header className="bg-slate-900 text-white border-b border-slate-800 sticky top-0 z-30 shadow-md">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-4">
+    <header className="bg-slate-900 text-white border-b border-slate-800 w-full h-16 shrink-0 z-30 shadow-md">
+      <div className="w-full px-6 h-full flex items-center justify-between gap-4">
         
         {/* Brand */}
         <div className="flex items-center gap-3 shrink-0">
@@ -79,9 +88,6 @@ export const Navbar: React.FC<Props> = ({
           <div className="hidden sm:block">
             <div className="flex items-center gap-2">
               <span className="font-bold text-lg tracking-tight">StockSense</span>
-              <span className="text-xs bg-blue-500/20 text-blue-300 px-2 py-0.5 rounded-full border border-blue-500/30 font-mono">
-                Odoo ERP
-              </span>
             </div>
             <p className="text-xs text-slate-400">{company.name} • {company.currency}</p>
           </div>
@@ -119,7 +125,6 @@ export const Navbar: React.FC<Props> = ({
                 </div>
               ) : (
                 <>
-                  {/* Products */}
                   {matchedProducts.length > 0 && (
                     <div className="p-2">
                       <div className="px-3 py-1 text-[10px] font-bold uppercase tracking-wider text-blue-400">Products & SKUs</div>
@@ -142,7 +147,6 @@ export const Navbar: React.FC<Props> = ({
                     </div>
                   )}
 
-                  {/* Warehouses */}
                   {matchedWarehouses.length > 0 && (
                     <div className="p-2">
                       <div className="px-3 py-1 text-[10px] font-bold uppercase tracking-wider text-emerald-400">Warehouses & Stacks</div>
@@ -165,7 +169,6 @@ export const Navbar: React.FC<Props> = ({
                     </div>
                   )}
 
-                  {/* Ledger */}
                   {matchedLedger.length > 0 && (
                     <div className="p-2">
                       <div className="px-3 py-1 text-[10px] font-bold uppercase tracking-wider text-purple-400">Audit Ledger</div>
@@ -205,12 +208,12 @@ export const Navbar: React.FC<Props> = ({
             {isDarkMode ? <Sun className="w-4 h-4 text-amber-400" /> : <Moon className="w-4 h-4 text-blue-400" />}
           </button>
 
-          {/* Notification Bell for Reorder Alerts */}
+          {/* Notifications Panel */}
           <div className="relative">
             <button
               onClick={() => setIsNotifOpen(!isNotifOpen)}
               className="relative p-2.5 bg-slate-800 hover:bg-slate-700 rounded-xl border border-slate-700 text-slate-300 hover:text-white transition-all cursor-pointer"
-              title="Low Stock Reorder Alerts"
+              title="Critical Stock & Audit Notifications"
             >
               <Bell className="w-4 h-4" />
               {lowStockItems.length > 0 && (
@@ -221,45 +224,71 @@ export const Navbar: React.FC<Props> = ({
             </button>
 
             {isNotifOpen && (
-              <div className="absolute right-0 mt-2 w-80 bg-slate-900 border border-slate-700 rounded-xl shadow-2xl py-3 z-50 text-slate-200">
+              <div className="absolute right-0 mt-2 w-96 bg-slate-900 border border-slate-700 rounded-2xl shadow-2xl py-4 z-50 text-slate-200">
                 <div className="px-4 pb-3 border-b border-slate-800 flex items-center justify-between">
                   <div className="flex items-center gap-2">
                     <AlertTriangle className="w-4 h-4 text-amber-400" />
-                    <span className="text-xs font-bold uppercase tracking-wider">Reorder Notifications</span>
+                    <span className="text-xs font-bold uppercase tracking-wider text-white">Notifications Panel</span>
                   </div>
-                  <span className="text-[10px] bg-slate-800 px-2 py-0.5 rounded text-slate-400 font-mono">Daily Check</span>
+                  <span className="text-[10px] bg-slate-800 px-2 py-0.5 rounded text-slate-300 font-mono">
+                    {lowStockItems.length} Critical Alert(s)
+                  </span>
                 </div>
 
-                <div className="max-h-64 overflow-y-auto divide-y divide-slate-800">
+                <div className="max-h-72 overflow-y-auto divide-y divide-slate-800/80">
                   {lowStockItems.length === 0 ? (
-                    <div className="p-6 text-center text-slate-400 text-xs">
-                      All stock levels are healthy above minimum reorder thresholds.
+                    <div className="p-8 text-center text-slate-400 text-xs">
+                      <CheckCircle2 className="w-8 h-8 text-emerald-500 mx-auto mb-2 opacity-80" />
+                      All stock levels are healthy above reorder thresholds.
                     </div>
                   ) : (
                     lowStockItems.map(item => {
                       const totalStock = stockLocations.filter(l => l.productId === item.id).reduce((s, l) => s + l.quantity, 0);
                       return (
-                        <div key={item.id} className="p-3.5 hover:bg-slate-800/60 transition-colors">
-                          <div className="flex items-center justify-between">
-                            <span className="font-semibold text-xs text-white">{item.name}</span>
-                            <span className="font-mono text-[10px] text-rose-400 bg-rose-950/40 px-2 py-0.5 rounded border border-rose-800">
-                              {totalStock} / min {item.minThreshold}
-                            </span>
+                        <div key={item.id} className="p-3.5 hover:bg-slate-800/60 transition-colors flex items-start justify-between gap-3">
+                          <div>
+                            <div className="flex items-center gap-2">
+                              <span className="font-semibold text-xs text-white">{item.name}</span>
+                              <span className="font-mono text-[9px] text-rose-400 bg-rose-950/60 px-2 py-0.5 rounded border border-rose-800">
+                                Low Stock
+                              </span>
+                            </div>
+                            <p className="text-[10px] text-slate-400 mt-0.5 font-mono">SKU: {item.sku} • On Hand: {totalStock} / Min: {item.minThreshold}</p>
                           </div>
-                          <p className="text-[10px] text-slate-400 mt-1 font-mono">SKU: {item.sku}</p>
+                          <button
+                            onClick={() => handleDismissAlert(item.id)}
+                            className="text-[10px] text-slate-400 hover:text-white bg-slate-800 px-2 py-1 rounded border border-slate-700 shrink-0"
+                            title="Acknowledge alert"
+                          >
+                            Dismiss
+                          </button>
                         </div>
                       );
                     })
                   )}
                 </div>
 
+                {/* Recent Audit Events Section */}
+                <div className="border-t border-slate-800 pt-3 px-4 mt-2">
+                  <div className="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-2">Recent Audit Movements</div>
+                  <div className="space-y-1.5 max-h-36 overflow-y-auto">
+                    {recentLedgerEvents.map(evt => (
+                      <div key={evt.id} className="text-[11px] text-slate-300 flex items-center justify-between bg-slate-800/40 p-2 rounded-lg border border-slate-800">
+                        <span className="font-mono text-blue-400">{evt.referenceNo}</span>
+                        <span className="text-slate-400 truncate max-w-[150px]">{evt.productName}</span>
+                        <span className="font-bold text-emerald-400">+{evt.quantity}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
                 {lowStockItems.length > 0 && (
-                  <div className="border-t border-slate-800 pt-3 px-3 mt-1">
+                  <div className="border-t border-slate-800 pt-3 px-4 mt-3">
                     <button
                       onClick={handleSendAutomatedEmail}
-                      className="w-full py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-lg text-xs font-semibold flex items-center justify-center gap-2 transition-all cursor-pointer shadow-sm"
+                      className="w-full py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-xl text-xs font-semibold flex items-center justify-center gap-2 transition-all cursor-pointer shadow-md"
                     >
-                      <Send className="w-3.5 h-3.5" /> Send Automated Reorder Email
+                      <Send className="w-3.5 h-3.5" /> Dispatch Automated Reorder Email
                     </button>
                   </div>
                 )}

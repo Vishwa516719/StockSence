@@ -12,6 +12,7 @@ import { Navbar } from './components/Navbar';
 import { Sidebar, ActiveTab } from './components/Sidebar';
 import { AddStackModal } from './components/AddStackModal';
 import { ToastContainer } from './components/ToastContainer';
+import { UndoToastBar } from './components/UndoToastBar';
 import { HomePage } from './components/HomePage';
 
 import { DashboardView } from './components/DashboardView';
@@ -97,10 +98,11 @@ export default function App() {
   const isAuthenticated = Boolean(session || currentUser);
 
   return (
-    <div className={`min-h-screen flex flex-col font-sans transition-colors duration-200 ${isDarkMode ? 'bg-slate-950 text-slate-100 dark' : 'bg-slate-50 text-slate-900'}`}>
+    <div className={`w-screen h-screen m-0 p-0 overflow-hidden flex flex-col font-sans transition-colors duration-200 ${isDarkMode ? 'bg-slate-950 text-slate-100 dark' : 'bg-slate-50 text-slate-900'}`}>
       
       {/* Toast Notifications */}
       <ToastContainer toasts={toasts} onDismiss={dismissToast} />
+      <UndoToastBar onShowToast={showToast} />
 
       {/* Onboarding Setup Modal (Zero-Data Start / Sign Up) */}
       {showSetupModal && (
@@ -149,13 +151,15 @@ export default function App() {
 
       {/* Public Home Page when Not Authenticated */}
       {!isAuthenticated ? (
-        <HomePage
-          onOpenSignUp={() => setShowSetupModal(true)}
-          onOpenSignIn={() => setShowLoginModal(true)}
-        />
+        <div className="w-full h-full overflow-y-auto">
+          <HomePage
+            onOpenSignUp={() => setShowSetupModal(true)}
+            onOpenSignIn={() => setShowLoginModal(true)}
+          />
+        </div>
       ) : (
-        /* Authenticated App Layout */
-        <>
+        /* Authenticated App Layout - Edge-to-Edge */
+        <div className="w-full h-full flex flex-col overflow-hidden">
           <Navbar
             company={company || { name: session?.user?.email || 'StockSense', email: session?.user?.email || '', passwordHash: '', industry: '', currency: 'USD', primaryWarehouseName: 'Main', createdAt: '' }}
             currentUser={currentUser || {
@@ -186,7 +190,7 @@ export default function App() {
             onShowToast={showToast}
           />
 
-          <div className="flex flex-1 max-w-7xl w-full mx-auto">
+          <div className="flex flex-1 w-full h-[calc(100vh-4rem)] overflow-hidden">
             <Sidebar
               activeTab={activeTab}
               onTabChange={setActiveTab}
@@ -211,8 +215,8 @@ export default function App() {
               }}
             />
 
-            <main className="flex-1 p-6 md:p-8 overflow-y-auto">
-              {activeTab === 'DASHBOARD' && <DashboardView onNavigate={setActiveTab} />}
+            <main className="flex-1 h-full p-6 md:p-8 overflow-y-auto">
+              {activeTab === 'DASHBOARD' && <DashboardView onNavigate={setActiveTab} onShowToast={showToast} />}
               {activeTab === 'PRODUCTS' && <ProductsView currentUser={currentUser || {
                 id: session?.user?.id || 'USR-SUPABASE',
                 name: session?.user?.email?.split('@')[0] || 'Admin',
@@ -349,7 +353,7 @@ export default function App() {
               }} onShowToast={showToast} />}
             </main>
           </div>
-        </>
+        </div>
       )}
 
     </div>

@@ -2,6 +2,7 @@
   "name": "StockSense IMS",
   "description": "Odoo-Inspired Enterprise Inventory Management System with Granular RBAC, Multi-Warehouse Stack Builder, and Immutable Audit Ledger.",
   "requestFramePermissions": [],
-  "majorCapabilities": []
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
 }
-

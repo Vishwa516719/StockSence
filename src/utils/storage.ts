@@ -193,3 +193,26 @@ export function generateReferenceNumber(type: 'IN' | 'OUT' | 'INT' | 'ADJ'): str
     case 'ADJ': return `INV/ADJ/${randomNum}`;
   }
 }
+
+// Activity Logs
+import { ActivityLog } from '../types';
+
+export function getActivityLogs(): ActivityLog[] {
+  const data = localStorage.getItem('stocksense_activity_logs');
+  return data ? JSON.parse(data) : [
+    { id: '1', timestamp: new Date(Date.now() - 3600000).toISOString(), action: 'System initialized', userName: 'System' },
+    { id: '2', timestamp: new Date(Date.now() - 1800000).toISOString(), action: 'Warehouse stack configured', userName: 'Admin' }
+  ];
+}
+
+export function logActivity(action: string, userName: string, details?: string): void {
+  const logs = getActivityLogs();
+  const newLog: ActivityLog = {
+    id: Math.random().toString(36).substr(2, 9),
+    timestamp: new Date().toISOString(),
+    action,
+    userName,
+    details
+  };
+  localStorage.setItem('stocksense_activity_logs', JSON.stringify([newLog, ...logs].slice(0, 30)));
+}

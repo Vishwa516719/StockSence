@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { StaffUser, Receipt, Product, WarehouseStack } from '../types';
-import { getReceipts, saveReceipts, getProducts, getWarehouses, updateProductStock, addLedgerEntry } from '../utils/storage';
+import { getReceipts, saveReceipts, getProducts, getWarehouses, updateProductStock, addLedgerEntry, logActivity } from '../utils/storage';
+import { undoManager } from '../services/undoService';
 import { BarcodeScannerModal } from './BarcodeScannerModal';
 import { ArrowDownLeft, Plus, CheckCircle2, Clock, Scan, X, Building, Layers } from 'lucide-react';
 
@@ -66,6 +67,19 @@ export const ReceiptsView: React.FC<Props> = ({ currentUser, onShowToast }) => {
     setReceipts(updated);
     setIsModalOpen(false);
     setSupplier('');
+
+    undoManager.push({
+      description: `Created receipt "${newReceipt.referenceNo}"`,
+      undo: () => {
+        const current = getReceipts().filter(r => r.id !== newReceipt.id);
+        saveReceipts(current);
+        setReceipts(current);
+        onShowToast('info', 'Undo Successful', `Receipt "${newReceipt.referenceNo}" creation reverted.`);
+      }
+    });
+
+    logActivity(`Receipt "${newReceipt.referenceNo}" created`, currentUser.name, `Supplier: ${newReceipt.supplierName}`);
+
     onShowToast('success', 'Receipt Created', `Vendor shipment ${newReceipt.referenceNo} created successfully.`);
   };
 
@@ -109,6 +123,9 @@ export const ReceiptsView: React.FC<Props> = ({ currentUser, onShowToast }) => {
     const updated = receipts.map(r => r.id === receiptId ? { ...target } : r);
     saveReceipts(updated);
     setReceipts(updated);
+
+    logActivity(`Receipt "${target.referenceNo}" validated`, currentUser.name, `Supplier: ${target.supplierName}`);
+
     onShowToast('success', 'Receipt Validated', `Stock updated and ledger entry logged for ${target.referenceNo}.`);
   };
 
